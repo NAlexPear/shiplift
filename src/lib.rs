@@ -173,6 +173,26 @@ impl<'a> Images<'a> {
         }
     }
 
+    /// Builds a new image build from a user-provided tarball
+    pub fn build_from_archive<A: Into<Body>>(
+        &self,
+        archive: A,
+    ) -> impl Stream<Item = Value, Error = Error> {
+        let path = "/build";
+
+        self.docker
+            .stream_post(path, Some((archive.into(), tar())), None::<iter::Empty<_>>)
+            .map(|r| {
+                futures::stream::iter_result(
+                    serde_json::Deserializer::from_slice(&r[..])
+                        .into_iter::<Value>()
+                        .collect::<Vec<_>>(),
+                )
+                .map_err(Error::from)
+            })
+            .flatten()
+    }
+
     /// Lists the docker images on the current docker host
     pub fn list(
         &self,
